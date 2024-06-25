@@ -1,3 +1,3 @@
-import { Lotto,  ZKLottoGame} from './ZKLottoGame.js';
+import { LottoNumbers, GameBoard, ZKLottoGame} from './ZKLottoGame.js';
 
-export { Lotto,  ZKLottoGame} ;
+export { LottoNumbers, GameBoard, ZKLottoGame} ;

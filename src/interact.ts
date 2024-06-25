@@ -14,7 +14,7 @@
  */
 import fs from 'fs/promises';
 import { Mina, NetworkId, PrivateKey } from 'o1js';
-import { Lotto,  ZKLottoGame } from './ZKLottoGame.js';
+import { LottoNumbers, GameBoard, LottoGameMerkleWitness, ZKLottoGame } from './ZKLottoGame';
 
 // check command line arg
 let deployAlias = process.argv[2];
