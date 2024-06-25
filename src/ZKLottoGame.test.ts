@@ -1,5 +1,5 @@
 import { AccountUpdate, Field, Mina, PrivateKey, PublicKey } from 'o1js';
-import { Add } from './Add';
+import { Lotto, ZKLottoGame } from './ZKLottoGame.js';
 
 /*
  * This file specifies how to test the `Add` example smart contract. It is safe to delete this file and replace
@@ -17,10 +17,10 @@ describe('Add', () => {
     senderKey: PrivateKey,
     zkAppAddress: PublicKey,
     zkAppPrivateKey: PrivateKey,
-    zkApp: Add;
+    zkApp: ZKLottoGame;
 
   beforeAll(async () => {
-    if (proofsEnabled) await Add.compile();
+    if (proofsEnabled) await ZKLottoGame.compile();
   });
 
   beforeEach(async () => {
@@ -32,7 +32,7 @@ describe('Add', () => {
 
     zkAppPrivateKey = PrivateKey.random();
     zkAppAddress = zkAppPrivateKey.toPublicKey();
-    zkApp = new Add(zkAppAddress);
+    zkApp = new ZKLottoGame(zkAppAddress);
   });
 
   async function localDeploy() {
@@ -45,23 +45,23 @@ describe('Add', () => {
     await txn.sign([deployerKey, zkAppPrivateKey]).send();
   }
 
-  it('generates and deploys the `Add` smart contract', async () => {
+  it('generates and deploys the `ZKLottoGame` smart contract', async () => {
     await localDeploy();
-    const num = zkApp.num.get();
+    const num = zkApp.lottogameWeek.get();
     expect(num).toEqual(Field(1));
   });
 
-  it('correctly updates the num state on the `Add` smart contract', async () => {
+  it('correctly start Lotto Week on the `ZKLottoGame` smart contract', async () => {
     await localDeploy();
 
     // update transaction
     const txn = await Mina.transaction(senderAccount, async () => {
-      await zkApp.update();
+      await zkApp.startLottoWeek();
     });
     await txn.prove();
     await txn.sign([senderKey]).send();
 
-    const updatedNum = zkApp.num.get();
-    expect(updatedNum).toEqual(Field(3));
+    const updatedNum = zkApp.lottogameWeek.get();
+    expect(updatedNum).toEqual(Field(2));
   });
 });
