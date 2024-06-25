@@ -22,7 +22,7 @@ import {
   MerkleWitness,
 } from 'o1js';
 
-export { Lotto, ZKLottoGame };
+export { LottoNumbers, GameBoard, ZKLottoGame };
 
 
 export class MerkleWitness4 extends MerkleWitness(4) {}
@@ -88,33 +88,81 @@ export class MerkleWitness256 extends MerkleWitness(256) {}
 
   // ==============================================================================
 
-
-
-class Lotto {
-  lottogame: Field[];
-  
-
-  constructor(serializedBoard: Field) {
-    const bits = serializedBoard.toBits(8);
-    let lottogame = [];
-    const row = Field(0);
-     
-    lottogame.push(row);
-    this.lottogame = lottogame;
-  }
-
-  serialize(): Field {
-    
-    return Field(0);
-  }
-
-  startNewLotto(week_: Field, weekStarted: Bool) {
-    for (let i = 0; i < 52; i++) {
+  class GameBoard extends Struct({
+    gmWeek: Field,
+    startTime: UInt64,
+    endTime: UInt64,
+    gameStatus: Bool,
+  }) {
+    static from(gmWeek: Field, startTime: UInt64, endTime: UInt64, gameStatus: Bool) {
+      return new GameBoard({ gmWeek: gmWeek, startTime: startTime, endTime: endTime, gameStatus: gameStatus});
     }
+  
   }
 
+  function Optional<T>(type: Provable<T>) {
+    return class Optional_ extends Struct({ isSome: Bool, value: type }) {
+      constructor(isSome: boolean | Bool, value: T) {
+        super({ isSome: Bool(isSome), value });
+      }
   
-}
+      toFields() {
+        return Optional_.toFields(this);
+      }
+    };
+  }
+  
+  class OptionalBool extends Optional(GameBoard) {}
+
+
+
+// class for creating the new Lotto Game Board
+// class Lotto {
+//   lottogame: OptionalBool[];
+  
+
+//   constructor() {
+//     let lottogame = [];
+    
+//     const gmWeek = Field(0);
+//     const startTime = new UInt64(0);
+//     const endTime = new UInt64(0);
+//     const gameStatus = Bool(false);
+    
+
+//     const gameBoard =  GameBoard.from(gmWeek, startTime, endTime, gameStatus);
+//     const GameOption = (new OptionalBool(gameStatus, gameBoard));
+
+//     lottogame.push(GameOption);
+//     this.lottogame = lottogame;
+//     }
+ 
+
+//   startNewLotto(
+//     gmWeek: Field,
+//     startTime: UInt64,
+//     endTime: UInt64,
+//     gameStatus: Bool,
+//   ) {
+//     const gameBoard =  GameBoard.from(gmWeek, startTime, endTime, gameStatus);
+//     for (let i = 1; i < 4; i++) {
+//       const toUpdate = gmWeek.equals(new Field(i));
+
+//       toUpdate.and(this.lottogame[i].isSome).assertEquals(false);
+
+//       // copy the game board (or update if new game is to start)
+//       this.lottogame[i] = Provable.if(
+//         toUpdate,
+//         new OptionalBool(true, gameBoard),
+//         this.lottogame[i]
+//       );
+//     }
+
+    
+//   }
+
+  
+// }
 
 class LottoNumbers extends Struct({
   gmWeek: Field,
@@ -140,19 +188,19 @@ class LottoWinningHistory extends Struct({
 
 class ZKLottoGame extends SmartContract {
   // The board is serialized as a single field element
-  @state(Field) lottoboard = State<Field>();
+  @state(Field) lottoboard = State<GameBoard>();
 
-  //lotto game ended
+  //lotto game states
   @state(Bool) lottoGameDone = State<Bool>();
-
   @state(Field) lottogameWeek = State<Field>();
   @state(Field) currentGameTimeStart = State<UInt64>();
   @state(Field) currentGameTimeEnd = State<UInt64>();
   @state(Field) gameduration = State<UInt64>();
 
-  //Lotto Winning numbers Hashed
-  @state(Field) LottoWinningNumbers = State<Field>();
-  @state(Field) LottoWinHistory = State<Field[]>();
+  //Lotto Winning numbers Details
+  @state(Field) LottoWeekWinningNumbers = State<LottoNumbers>();
+  @state(Field) LottoWinHistory = State<LottoNumbers[]>();
+  @state(Field) LottoWinHash = State<Field>();
 
   
   @state(Field) storageTreeRoot = State<Field>();
@@ -196,9 +244,23 @@ class ZKLottoGame extends SmartContract {
     /*Create New Lotto Week, start the new lotto for the week
     This section to start the timer for the new Lotto Game week, should display the Week No. and Countdown
     */
-    // let lottoboard = new Lotto(this.lottoboard.get());
-    // lottoboard.startNewLotto(gameWeek, Bool(true));
-    // this.lottoboard.set(lottoboard.serialize());
+    this.lottoboard.requireEquals(this.lottoboard.get());
+    //this is for the demo. Production would require creating a new board each game week
+    const gameBoard =  GameBoard.from(
+      gameWeek,
+      this.currentGameTimeStart.get(),
+      this.currentGameTimeEnd.get(),
+      this.lottoGameDone.get()
+    );
+    this.lottoboard.set(gameBoard);
+
+    /*let lottoboard = new Lotto(this.lottoboard.get());
+    lottoboard.startNewLotto(
+      gameWeek,
+      this.currentGameTimeStart,
+      this.currentGameTimeEnd, this.lottoGameDone) (gameWeek, Bool(true));
+      this.lottoboard.set(lottoboard.serialize());
+    */
     
   }
 
@@ -217,19 +279,24 @@ class ZKLottoGame extends SmartContract {
     Ideally, we are to a more secure verifiable means to generate the winning numbers
     possibly using VRF. But for this PoC, we manually set the winning numbers
     */
-
+    
     // verify the lotto week to end is same as current week
     this.lottogameWeek.requireEquals(winningNums.gmWeek);
-    const winningHash = winningNums.hash();
-
+    //set winning details
+    this.LottoWeekWinningNumbers.set(winningNums);
+    
     //add to winning game lotto numbers array
-    //@notice MerkleMap might be a better option?
     const winHistory = this.LottoWinHistory.get();
-    winHistory.push(winningHash);
-    this.LottoWinHistory.set(winHistory);
-
-    //set hash of winning details
-    this.LottoWinningNumbers.set(winningHash);
+    winHistory.push(winningNums);
+    
+    
+    // this.LottoWeekWinningNumbers.set(winningHash);
+    
+    //@notice MerkleMap might be a better option?
+    //hash week winning numbers and set to LottoWinHash
+    this.LottoWinHash.requireEquals(this.LottoWinHash.get());
+    const winningHash = winningNums.hash();
+    this.LottoWinHash.set(winningHash);
 
   }
 

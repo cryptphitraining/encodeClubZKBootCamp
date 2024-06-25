@@ -1,5 +1,5 @@
 import { AccountUpdate, Field, Mina, PrivateKey, PublicKey } from 'o1js';
-import { Lotto, ZKLottoGame } from './ZKLottoGame.js';
+import { Lotto, ZKLottoGame } from './ZKLottoGame';
 
 /*
  * This file specifies how to test the `Add` example smart contract. It is safe to delete this file and replace
@@ -10,7 +10,7 @@ import { Lotto, ZKLottoGame } from './ZKLottoGame.js';
 
 let proofsEnabled = false;
 
-describe('Add', () => {
+describe('ZKLottoGame', () => {
   let deployerAccount: Mina.TestPublicKey,
     deployerKey: PrivateKey,
     senderAccount: Mina.TestPublicKey,
