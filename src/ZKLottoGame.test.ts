@@ -1,4 +1,4 @@
-import { AccountUpdate, Field, Mina, PrivateKey, PublicKey, Signature } from 'o1js';
+import { AccountUpdate, Field, Mina, PrivateKey, PublicKey, Signature, MerkleWitness, MerkleTree } from 'o1js';
 import { LottoNumbers, GameBoard, ZKLottoGame } from './ZKLottoGame';
 
 /*
@@ -7,6 +7,11 @@ import { LottoNumbers, GameBoard, ZKLottoGame } from './ZKLottoGame';
  *
  * See https://docs.minaprotocol.com/zkapps for more info.
  */
+
+const height = 8;
+const tree = new MerkleTree(height);
+class MerkleWitness8 extends MerkleWitness(height) {}
+
 
 let proofsEnabled = false;
 
@@ -183,13 +188,14 @@ describe('ZKLottoGame', () => {
 
 
     // Claim Wins
+    const senderWitness = new MerkleWitness8(tree.getWitness(gameWeek.toBigInt()));
 
     const signature2 = Signature.create(
       senderKey,
       [gameWeek, PlayerEntryHash]);
 
     const txn4 = await Mina.transaction(senderAccount, async () => {
-      await zkApp.ClaimWinning(senderAccount, signature2, gameWeek, PlayerEntry);
+      await zkApp.ClaimWinning(senderAccount, signature2, gameWeek, PlayerEntry, senderWitness);
     });
     await txn4.prove();
     await txn4.sign([senderKey]).send();
@@ -245,17 +251,20 @@ describe('ZKLottoGame', () => {
 
     // Claim Wins
 
+    
+    
     const wrongNumbers = [Field(2), Field(15), Field(20), Field(28), Field(35), Field(43)]
     const wrongEntry =  LottoNumbers.from(gameWeek, wrongNumbers);
     const wrongEntryHash = wrongEntry.hash();
 
+    const senderWitness = new MerkleWitness8(tree.getWitness(gameWeek.toBigInt()));
     const signature2 = Signature.create(
       senderKey,
       [gameWeek, wrongEntryHash]);
 
     try {
       const txn4 = await Mina.transaction(senderAccount, async () => {
-      await zkApp.ClaimWinning(senderAccount, signature2, gameWeek, wrongEntry);
+      await zkApp.ClaimWinning(senderAccount, signature2, gameWeek, wrongEntry, senderWitness);
       });
       await txn4.prove();
       await txn4.sign([senderKey]).send();

@@ -41,22 +41,6 @@ export class MerkleWitness8 extends MerkleWitness(8) {}
   
   }
 
-  function Optional<T>(type: Provable<T>) {
-    return class Optional_ extends Struct({ isSome: Bool, value: type }) {
-      constructor(isSome: boolean | Bool, value: T) {
-        super({ isSome: Bool(isSome), value });
-      }
-  
-      toFields() {
-        return Optional_.toFields(this);
-      }
-    };
-  }
-  
-  class OptionalBool extends Optional(GameBoard) {}
-
-
-
 class LottoNumbers extends Struct({
   gmWeek: Field,
   value: Provable.Array(Field, 6),
@@ -184,7 +168,12 @@ class ZKLottoGame extends SmartContract {
 
     // create a Merkle Tree and update it with the new leaf
     let tree = new MerkleTree(8);
-    tree.setLeaf(week_.toBigInt() % BigInt(256), leaf); 
+     
+    let weektoBigInt: BigInt;
+      Provable.asProver(() => {
+      weektoBigInt = week_.toBigInt();
+      tree.setLeaf(week_.toBigInt() % BigInt(256), leaf);
+    });
 
     // compute the new root and update the state
     const newRoot = tree.getRoot();
