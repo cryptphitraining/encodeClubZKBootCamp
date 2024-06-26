@@ -41,22 +41,6 @@ export class MerkleWitness8 extends MerkleWitness(8) {}
   
   }
 
-  function Optional<T>(type: Provable<T>) {
-    return class Optional_ extends Struct({ isSome: Bool, value: type }) {
-      constructor(isSome: boolean | Bool, value: T) {
-        super({ isSome: Bool(isSome), value });
-      }
-  
-      toFields() {
-        return Optional_.toFields(this);
-      }
-    };
-  }
-  
-  class OptionalBool extends Optional(GameBoard) {}
-
-
-
 class LottoNumbers extends Struct({
   gmWeek: Field,
   value: Provable.Array(Field, 6),
@@ -85,9 +69,7 @@ class ZKLottoGame extends SmartContract {
 
   //Lotto Winning numbers Hash 
   @state(Field) LottoWinHash = State<Field>();
-
-  
-  // @state(Field) storageTreeRoot = State<Field>();
+  @state(Field) storageTreeRoot = State<Field>();
 
 
   init() {
@@ -98,9 +80,8 @@ class ZKLottoGame extends SmartContract {
     this.currentGameTimeStart.set(UInt64.from(0));
     this.currentGameTimeEnd.set(this.network.timestamp.get());
     this.gameduration.set(UInt64.from(518400)); //game duration is 6 days, winning lotto numbers generated on day 7
-    //initiate gameRoot
-    // const emptyTreeRoot = new MerkleTree(8).getRoot();
-    // this.storageTreeRoot.set(emptyTreeRoot);
+    const emptyTreeRoot = new MerkleTree(8).getRoot();
+    this.storageTreeRoot.set(emptyTreeRoot);
   }
 
   @method async startLottoWeek() {
@@ -178,12 +159,25 @@ class ZKLottoGame extends SmartContract {
     // const lottoEntryHash = lottoEntry.hash();
     signature.verify(pubkey, [week_, lottoEntryHash]).assertTrue();
 
-    /*TO-DO
-    add user's lotto numbers entry to merkleTree for the Game week
-    */
-    
+ // retrieve the current Merkle root
+    const currentRoot = this.storageTreeRoot.get();
+    this.storageTreeRoot.requireEquals(currentRoot);
 
+    // generate a new Merkle leaf for this entry
+    const leaf = lottoEntryHash;
 
+    // create a Merkle Tree and update it with the new leaf
+    let tree = new MerkleTree(8);
+     
+    let weektoBigInt: BigInt;
+      Provable.asProver(() => {
+      weektoBigInt = week_.toBigInt();
+      tree.setLeaf(week_.toBigInt() % BigInt(256), leaf);
+    });
+
+    // compute the new root and update the state
+    const newRoot = tree.getRoot();
+    this.storageTreeRoot.set(newRoot);
   }
 
   @method.returns(Bool) async ClaimWinning(
@@ -191,16 +185,17 @@ class ZKLottoGame extends SmartContract {
     signature: Signature,
     week_: Field,
     winningNums: LottoNumbers,
+    witness: MerkleWitness8,
   ) {
-    //proof user is winner of the claim week's lotto
-    const winninglottoEntryHash = this.LottoWinHash.get();
-    this.LottoWinHash.requireEquals(this.LottoWinHash.get());
-    const winningLeaf = [week_].concat(winninglottoEntryHash.toFields());
-    signature.verify(pubkey, winningLeaf).assertTrue();
+    const currentRoot = this.storageTreeRoot.get();
+    this.storageTreeRoot.requireEquals(currentRoot);
 
+    const leaf = winningNums.hash();
+    const isValid = witness.calculateRoot(leaf).equals(currentRoot);
+    isValid.assertTrue("Invalid proof");
 
-    //transfer winnings to user after successful proof verification
+    signature.verify(pubkey, [week_, leaf]).assertTrue();
+
     return Bool(true);
-   
   }
 }
