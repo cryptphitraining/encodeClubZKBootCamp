@@ -1,8 +1,8 @@
-import DefaultLayout from "@/layouts/default";
 import { title } from "@/components/primitives";
 import React from "react";
 import { Card, CardHeader, Spacer, Input, Button } from "@nextui-org/react";
 import dynamic from "next/dynamic";
+import Web3Layout from "@/layouts/web3";
 
 // Cargar Countdown dinámicamente para evitar errores de hidratación
 const Countdown = dynamic(() => import("../../components/Countdown"), { ssr: false });
@@ -20,7 +20,7 @@ const getNextMonday = (): string => {
 export default function AdminPage() {
   const targetDate = getNextMonday();
   return (
-    <DefaultLayout>
+    <Web3Layout>
       <h1 className={`${title()} text-green-500 pb-2`}>
         Admin dashboard
       </h1>
@@ -109,6 +109,6 @@ export default function AdminPage() {
             End Game Week
             </Button>
           </div>
-    </DefaultLayout>
+    </Web3Layout>
   );
 }
