@@ -2,8 +2,23 @@ import DefaultLayout from "@/layouts/default";
 import { title } from "@/components/primitives";
 import React from "react";
 import { Card, CardHeader, Spacer, Input, Button } from "@nextui-org/react";
+import dynamic from "next/dynamic";
+
+// Cargar Countdown dinámicamente para evitar errores de hidratación
+const Countdown = dynamic(() => import("../../components/Countdown"), { ssr: false });
+
+const getNextMonday = (): string => {
+  const today = new Date();
+  const nextMonday = new Date(
+    today.setDate(today.getDate() + ((1 + 7 - today.getDay()) % 7))
+  );
+  nextMonday.setHours(23, 59, 59, 999); // Establecer la hora al final del día
+  return nextMonday.toISOString();
+};
+
 
 export default function AdminPage() {
+  const targetDate = getNextMonday();
   return (
     <DefaultLayout>
       <h1 className={`${title()} text-green-500 pb-2`}>
@@ -23,8 +38,8 @@ export default function AdminPage() {
           <CardHeader className="absolute z-10 top-1 flex-col items-start">
             <h4 className="text-white/90 font-medium text-3xl">Countdown</h4>
           </CardHeader>
-          <div className="text-green-500 text-6xl font-bold">
-            10:00 {/* Aquí puedes sustituir 10:00 por la cuenta regresiva real */}
+          <div className="text-green-500 text-2xl font-bold">
+            <Countdown targetDate={targetDate} />
           </div>
         </Card>
         <Card isBlurred className="w-full h-[200px] col-span-12 sm:col-span-12 relative flex justify-center items-center">
