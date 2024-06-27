@@ -58,7 +58,7 @@ class LottoNumbers extends Struct({
 
 class ZKLottoGame extends SmartContract {
   // The board is serialized as a single field element
-  @state(Field) lottoboard = State<GameBoard>();
+  // @state(Field) lottoboard = State<GameBoard>();
 
   //lotto game states
   @state(Bool) lottoGameDone = State<Bool>();
@@ -113,7 +113,6 @@ class ZKLottoGame extends SmartContract {
   @method async endLottoWeek(winningNums: LottoNumbers) {
     //start lotto game week by increasing by 1 week
     //ensure current game week is at least 1 week past previous game week
-    const currentGameTimeEnd = this.currentGameTimeEnd.get();
     this.currentGameTimeEnd.requireEquals(this.currentGameTimeEnd.get());
     // this.network.timestamp.get().assertGreaterThanOrEqual(currentGameTimeEnd);
 
@@ -170,7 +169,7 @@ class ZKLottoGame extends SmartContract {
     let tree = new MerkleTree(8);
      
     let weektoBigInt: BigInt;
-      Provable.asProver(() => {
+    Provable.asProver(() => {
       weektoBigInt = week_.toBigInt();
       tree.setLeaf(week_.toBigInt() % BigInt(256), leaf);
     });
@@ -184,13 +183,13 @@ class ZKLottoGame extends SmartContract {
     pubkey: PublicKey,
     signature: Signature,
     week_: Field,
-    winningNums: LottoNumbers,
+    lottoEntryHash: Field,
     witness: MerkleWitness8,
   ) {
     const currentRoot = this.storageTreeRoot.get();
     this.storageTreeRoot.requireEquals(currentRoot);
 
-    const leaf = winningNums.hash();
+    const leaf = lottoEntryHash;
     const isValid = witness.calculateRoot(leaf).equals(currentRoot);
     isValid.assertTrue("Invalid proof");
 

@@ -192,10 +192,10 @@ describe('ZKLottoGame', () => {
 
     const signature2 = Signature.create(
       senderKey,
-      [gameWeek, PlayerEntryHash]);
+      [gameWeek, winningHash]);
 
     const txn4 = await Mina.transaction(senderAccount, async () => {
-      await zkApp.ClaimWinning(senderAccount, signature2, gameWeek, PlayerEntry, senderWitness);
+      await zkApp.ClaimWinning(senderAccount, signature2, gameWeek, winningHash, senderWitness);
     });
     await txn4.prove();
     await txn4.sign([senderKey]).send();
@@ -219,52 +219,47 @@ describe('ZKLottoGame', () => {
     expect(gameWeek).toEqual(Field(1));
 
     // Play Game
-    const chosenNumbers = [Field(2), Field(15), Field(19), Field(28), Field(35), Field(42)]
-    const PlayerEntry =  LottoNumbers.from(gameWeek, chosenNumbers);
-    const PlayerEntryHash = PlayerEntry.hash();
+    const wrongNumbers = [Field(2), Field(15), Field(20), Field(28), Field(35), Field(43)]
+    const wrongEntry =  LottoNumbers.from(gameWeek, wrongNumbers);
+    const PlayerWrongEntryHash = wrongEntry.hash();
 
     const signature1 = Signature.create(
       senderKey,
-      [gameWeek, PlayerEntryHash]);
+      [gameWeek, PlayerWrongEntryHash]);
 
 
     const txn2 = await Mina.transaction(senderAccount, async () => {
-      await zkApp.play(senderAccount, signature1, gameWeek, PlayerEntryHash);
+      await zkApp.play(senderAccount, signature1, gameWeek, PlayerWrongEntryHash);
     });
     await txn2.prove();
     await txn2.sign([senderKey]).send();
 
 
     //End Game
-    const lottoEntryInfo =  LottoNumbers.from(gameWeek, chosenNumbers);
+
+    const winningNumbers = [Field(2), Field(15), Field(19), Field(28), Field(35), Field(42)]
+    const WinningEntry =  LottoNumbers.from(gameWeek, winningNumbers);
 
     const txn3 = await Mina.transaction(senderAccount, async () => {
-      await zkApp.endLottoWeek(lottoEntryInfo);
+      await zkApp.endLottoWeek(WinningEntry);
     });
     await txn3.prove();
     await txn3.sign([senderKey]).send();
 
-    const winningHash = lottoEntryInfo.hash();
-    // const updatedNum2 = zkApp.LottoWinHash.get();
+    const winningHash = WinningEntry.hash();
     expect(winningHash).toEqual(zkApp.LottoWinHash.get());
 
 
     // Claim Wins
 
-    
-    
-    const wrongNumbers = [Field(2), Field(15), Field(20), Field(28), Field(35), Field(43)]
-    const wrongEntry =  LottoNumbers.from(gameWeek, wrongNumbers);
-    const wrongEntryHash = wrongEntry.hash();
-
     const senderWitness = new MerkleWitness8(tree.getWitness(gameWeek.toBigInt()));
     const signature2 = Signature.create(
       senderKey,
-      [gameWeek, wrongEntryHash]);
+      [gameWeek, winningHash]);
 
     try {
       const txn4 = await Mina.transaction(senderAccount, async () => {
-      await zkApp.ClaimWinning(senderAccount, signature2, gameWeek, wrongEntry, senderWitness);
+      await zkApp.ClaimWinning(senderAccount, signature2, gameWeek, winningHash, senderWitness);
       });
       await txn4.prove();
       await txn4.sign([senderKey]).send();
